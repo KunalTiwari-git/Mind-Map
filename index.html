@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Zoomable Threaded Navigation</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="controls">
+      <button id="zoom-in">Zoom In (+)</button>
+      <button id="zoom-out">Zoom Out (-)</button>
+      <button id="zoom-reset">Reset</button>
+      <span id="zoom-level">100%</span>
+    </div>
+    <div id="zoom-container">
+      <svg id="canvas-svg"></svg>
+      <div id="app">
+        <div class="node" id="node-0" style="top: 200px; left: 50px">
+          <div class="header">Root Node</div>
+
+          <p>Start your thread here.</p>
+          <button class="spawn-btn">Add Child +</button>
+        </div>
+      </div>
+    </div>
+    <script src="./script.js"></script>
+  </body>
+</html>
