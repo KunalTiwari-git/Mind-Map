@@ -118,12 +118,23 @@ window.addEventListener("load", () => {
         return;
 
       e.preventDefault();
-      let ox = e.clientX / zoomLevel - node.offsetLeft;
-      let oy = e.clientY / zoomLevel - node.offsetTop;
+
+      // Get the app container's position — this is what offsetLeft/offsetTop are relative to
+      const appRect = app.getBoundingClientRect();
+
+      // Where the mouse is inside the app container (accounting for zoom)
+      const mouseXInApp = (e.clientX - appRect.left) / zoomLevel;
+      const mouseYInApp = (e.clientY - appRect.top) / zoomLevel;
+
+      // How far inside the node the user clicked
+      const offsetX = mouseXInApp - node.offsetLeft;
+      const offsetY = mouseYInApp - node.offsetTop;
 
       const move = (ev) => {
-        node.style.left = ev.clientX / zoomLevel - ox + "px";
-        node.style.top = ev.clientY / zoomLevel - oy + "px";
+        const curMouseXInApp = (ev.clientX - appRect.left) / zoomLevel;
+        const curMouseYInApp = (ev.clientY - appRect.top) / zoomLevel;
+        node.style.left = curMouseXInApp - offsetX + "px";
+        node.style.top = curMouseYInApp - offsetY + "px";
         updateLines();
       };
 
@@ -136,7 +147,6 @@ window.addEventListener("load", () => {
       window.addEventListener("mouseup", up);
     });
   }
-
   // --- SPAWN LOGIC ---
   function setupNode(node) {
     makeDraggable(node);
