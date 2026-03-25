@@ -30,7 +30,12 @@ window.addEventListener("load", () => {
     zoomLevel = 1.0;
     updateZoom();
   };
-
+  document.getElementById("clear-btn").onclick = () => {
+    if (confirm("Delete everything and start fresh?")) {
+      localStorage.removeItem("mindmap-data");
+      location.reload();
+    }
+  };
   // NEW: Scroll Wheel Zoom (Middle Mouse Button / Wheel)
   // We apply this to the window so you can zoom from anywhere
   window.addEventListener(
@@ -78,6 +83,28 @@ window.addEventListener("load", () => {
       );
     });
   }
+  function getAllNodeData() {
+    const nodes = document.querySelectorAll(".node");
+    const data = [];
+    nodes.forEach((node) => {
+      data.push({
+        id: node.id,
+        left: node.style.left,
+        top: node.style.top,
+        title: node.querySelector(".node-title")?.innerText || "Node",
+        content: node.querySelector("textarea")?.value || "",
+      });
+    });
+    return data;
+  }
+  function saveToStorage() {
+    const state = {
+      nodes: getAllNodeData(),
+      connections: connections,
+      nodeCount: nodeCount,
+    };
+    localStorage.setItem("mindmap-data", JSON.stringify(state));
+  }
 
   // --- DELETE LOGIC (Recursive) ---
   function deleteNodeAndDescendants(nodeId) {
@@ -109,12 +136,57 @@ window.addEventListener("load", () => {
       nodeEl.remove();
     }
   }
+  function maketitleEditable(node) {
+    const titleEl = node.querySelector(".node-title");
+    if (!titleEl) return;
 
+    titleEl.addEventListener("dblclick", (e) => {
+      e.stopPropagation(); //don't trigger drag
+      const currentText = titleEl.innerText;
+
+      //Replace the span with an input field
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = currentText;
+      input.style.cssText = `
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #4a9eff;
+      color: white;
+      font-size: inherit;
+      font-weight: bold;
+      font-family: inherit;
+      width: 80%;
+      outline: none;
+      `;
+
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select(); //highlight all text so user can just start typing
+
+      //When user clicks away - save the new title
+
+      input.addEventListener("blur", () => {
+        titleEl.innerText = input.value.trim() || "Untitled";
+        input.replaceWith(titleEl);
+        saveToStorage();
+      });
+
+      //When user presses Enter - save the new title
+      input.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") input.blur();
+      });
+    });
+  }
   // --- DRAG LOGIC ---
   function makeDraggable(node) {
     const header = node.querySelector(".header");
     header.addEventListener("mousedown", (e) => {
-      if (e.target.tagName === "BUTTON" || e.target.tagName === "TEXTAREA")
+      if (
+        e.target.tagName === "BUTTON" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.tagName === "SPAN"
+      )
         return;
 
       e.preventDefault();
@@ -136,6 +208,7 @@ window.addEventListener("load", () => {
         node.style.left = curMouseXInApp - offsetX + "px";
         node.style.top = curMouseYInApp - offsetY + "px";
         updateLines();
+        saveToStorage();
       };
 
       const up = () => {
@@ -147,10 +220,58 @@ window.addEventListener("load", () => {
       window.addEventListener("mouseup", up);
     });
   }
+  function loadFromStorage() {
+    const raw = localStorage.getItem("mindmap-data");
+    if (!raw) return false;
+    const state = JSON.parse(raw);
+    nodeCount = state.nodeCount;
+
+    state.nodes.forEach((nodeData) => {
+      if (nodeData.id === "node-0") {
+        //Root node already exists in HTML - just restore its position and content
+        const root = document.getElementById("node-0");
+        root.style.left = nodeData.left;
+        root.style.top = nodeData.top;
+        if (root.querySelector("textarea")) {
+          root.querySelector("textarea").value = nodeData.content;
+        }
+        setupNode(root);
+        return;
+      }
+      //For all other nodes - create them from scratch
+      const newNode = document.createElement("div");
+      newNode.className = "node";
+      newNode.id = nodeData.id;
+      newNode.style.left = nodeData.left;
+      newNode.style.top = nodeData.top;
+      newNode.innerHTML = `
+      <div class="header">
+        <span class="node-title">${nodeData.title}</span>
+        <button class="close-btn">×</button>
+      </div>
+      <div class="content">
+        <textarea placeholder="Type something...">${nodeData.content}</textarea>
+        <div class="footer">
+          <button class="spawn-btn">Add Child +</button>
+        </div>
+      </div>`;
+      app.appendChild(newNode);
+      newNode
+        .querySelector("textarea")
+        .addEventListener("input", saveToStorage);
+      setupNode(newNode);
+    });
+    //restore all connections and draw lines
+    state.connections.forEach((conn) => {
+      createLine(conn.from, conn.to);
+    });
+    updateLines();
+    return true;
+  }
   // --- SPAWN LOGIC ---
   function setupNode(node) {
     makeDraggable(node);
-
+    maketitleEditable(node);
     // Add Child Button
     node.querySelector(".spawn-btn").onclick = (e) => {
       e.stopPropagation();
@@ -162,18 +283,21 @@ window.addEventListener("load", () => {
       newNode.style.top = node.offsetTop + (Math.random() * 100 - 50) + "px";
 
       newNode.innerHTML = `
-        <div class="header">
-            <span>Node ${nodeCount - 1}</span>
-            <button class="close-btn">×</button>
-        </div>
-        <div class="content">
-          <textarea placeholder="Type something..."></textarea>
-          <div class="footer">
-            <button class="spawn-btn">Add Child +</button>
-          </div>
-        </div>`;
+  <div class="header">
+    <span class="node-title">Node ${nodeCount - 1}</span>
+    <button class="close-btn">×</button>
+  </div>
+  <div class="content">
+    <textarea placeholder="Type something..."></textarea>
+    <div class="footer">
+      <button class="spawn-btn">Add Child +</button>
+    </div>
+  </div>`;
 
       app.appendChild(newNode);
+      newNode
+        .querySelector("textarea")
+        .addEventListener("input", saveToStorage);
       createLine(node.id, newId);
       setupNode(newNode);
       updateLines();
@@ -190,6 +314,10 @@ window.addEventListener("load", () => {
     }
   }
 
-  const rootNode = document.getElementById("node-0");
-  if (rootNode) setupNode(rootNode);
+  const loaded = loadFromStorage();
+  if (!loaded) {
+    //Nothing saved - set up the fresh root node
+    const rootNode = document.getElementById("node-0");
+    if (rootNode) setupNode(rootNode);
+  }
 });

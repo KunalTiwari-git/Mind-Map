@@ -7,6 +7,7 @@
   </head>
   <body>
     <div id="controls">
+      <button id="clear-btn">Clear All</button>
       <button id="zoom-in">Zoom In (+)</button>
       <button id="zoom-out">Zoom Out (-)</button>
       <button id="zoom-reset">Reset</button>
@@ -16,7 +17,9 @@
       <svg id="canvas-svg"></svg>
       <div id="app">
         <div class="node" id="node-0" style="top: 200px; left: 50px">
-          <div class="header">Root Node</div>
+          <div class="header">
+            <span class="node-title">Root Node</span>
+          </div>
 
           <p>Start your thread here.</p>
           <button class="spawn-btn">Add Child +</button>
